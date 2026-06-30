@@ -610,22 +610,26 @@
       document.getElementById("cfgDetalles").value = configuracion["Detalles especiales mensaje"] || "";
     }
 
-    async function guardarConfig() {
-      const data = await api("guardarConfiguracionAdmin", {
-        novio: document.getElementById("cfgNovio").value,
-        novia: document.getElementById("cfgNovia").value,
-        fecha: document.getElementById("cfgFecha").value,
-        hora: document.getElementById("cfgHora").value,
-        lugar: document.getElementById("cfgLugar").value,
-        mapa: document.getElementById("cfgMapa").value,
-        vestimenta: document.getElementById("cfgVestimenta").value,
-        limite: document.getElementById("cfgLimite").value,
-        mensajeWhatsapp: document.getElementById("cfgMensajeWhatsApp").value,
-        detalles: document.getElementById("cfgDetalles").value
-      });
+   async function guardarConfig() {
+  const data = await api("guardarConfiguracionAdmin", {
+    novio: document.getElementById("cfgNovio").value,
+    novia: document.getElementById("cfgNovia").value,
+    fecha: document.getElementById("cfgFecha").value,
+    hora: document.getElementById("cfgHora").value,
+    lugar: document.getElementById("cfgLugar").value,
+    mapa: document.getElementById("cfgMapa").value,
+    vestimenta: document.getElementById("cfgVestimenta").value,
+    limite: document.getElementById("cfgLimite").value,
+    mensajeWhatsapp: document.getElementById("cfgMensajeWhatsApp").value,
+    detalles: document.getElementById("cfgDetalles").value
+  });
 
-      alert(data.mensaje || "Configuración guardada.");
-    }
+  if (data.ok) {
+    await cargarConfiguracion();
+  }
+
+  alert(data.mensaje || "Configuración guardada.");
+}
 
     function claseEstado(estado) {
       if (estado === "Confirmado") return "confirmado";
