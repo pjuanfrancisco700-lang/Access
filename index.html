@@ -313,6 +313,7 @@
           <input id="cfgMapa" placeholder="Link mapa" />
           <input id="cfgVestimenta" placeholder="Código vestimenta" />
           <input id="cfgLimite" placeholder="Fecha límite confirmación" />
+          <textarea id="cfgMensajeWhatsApp" placeholder="Mensaje WhatsApp. Usa {NOMBRE} para insertar el nombre del invitado."></textarea>
           <textarea id="cfgDetalles" placeholder="Detalles especiales"></textarea>
           <button class="btn" onclick="guardarConfig()">Guardar configuración</button>
         </div>
@@ -558,7 +559,11 @@
       }
 
       const link = URL_INVITACION + encodeURIComponent(invitado.id || "");
-      const mensaje = `Hola ${invitado.nombre}, te compartimos tu invitación especial: ${link}`;
+
+      let mensajeBase = configuracion["Mensaje WhatsApp"] || "Hola {NOMBRE}, te compartimos tu invitación especial:";
+      mensajeBase = mensajeBase.replaceAll("{NOMBRE}", invitado.nombre || "");
+
+      const mensaje = `${mensajeBase}\n\n${link}`;
       const whatsappUrl = "https://wa.me/502" + tel + "?text=" + encodeURIComponent(mensaje);
 
       try {
@@ -601,6 +606,7 @@
       document.getElementById("cfgMapa").value = configuracion["Link mapa"] || "";
       document.getElementById("cfgVestimenta").value = configuracion["Código vestimenta"] || "";
       document.getElementById("cfgLimite").value = configuracion["Fecha límite confirmación"] || "";
+      document.getElementById("cfgMensajeWhatsApp").value = configuracion["Mensaje WhatsApp"] || "";
       document.getElementById("cfgDetalles").value = configuracion["Detalles especiales mensaje"] || "";
     }
 
@@ -614,6 +620,7 @@
         mapa: document.getElementById("cfgMapa").value,
         vestimenta: document.getElementById("cfgVestimenta").value,
         limite: document.getElementById("cfgLimite").value,
+        mensajeWhatsapp: document.getElementById("cfgMensajeWhatsApp").value,
         detalles: document.getElementById("cfgDetalles").value
       });
 
