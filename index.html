@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Control de Invitados</title>
+
+  <style>
+    :root {
+      --primary: #25b7d3;
+      --primary-dark: #0f9fbd;
+      --bg: #f4fbfd;
+      --white: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #dceef3;
+      --green: #16a34a;
+      --red: #dc2626;
+      --yellow: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100vh;
+      background: var(--white);
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--primary);
+      color: white;
+      padding: 18px 16px 14px;
+      border-bottom-left-radius: 22px;
+      border-bottom-right-radius: 22px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 21px;
+    }
+
+    header p {
+      margin: 4px 0 0;
+      font-size: 13px;
+      opacity: .9;
+    }
+
+    main {
+      flex: 1;
+      padding: 14px;
+      padding-bottom: 90px;
+      overflow-y: auto;
+    }
+
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 6px 16px rgba(15, 159, 189, .08);
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .title {
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 3px;
+    }
+
+    .badge {
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .badge.confirmado {
+      background: #dcfce7;
+      color: var(--green);
+    }
+
+    .badge.pendiente {
+      background: #fef3c7;
+      color: var(--yellow);
+    }
+
+    .badge.no {
+      background: #fee2e2;
+      color: var(--red);
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      font-size: 15px;
+      outline: none;
+      background: white;
+      margin-bottom: 10px;
+    }
+
+    textarea {
+      min-height: 80px;
+      resize: none;
+    }
+
+    button {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn {
+      background: var(--primary);
+      color: white;
+      width: 100%;
+    }
+
+    .btn-light {
+      background: #e8f8fb;
+      color: var(--primary-dark);
+    }
+
+    .btn-green {
+      background: #dcfce7;
+      color: var(--green);
+    }
+
+    .btn-red {
+      background: #fee2e2;
+      color: var(--red);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stat {
+      background: #f8fdff;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 24px;
+      color: var(--primary-dark);
+    }
+
+    .stat span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: 480px;
+      width: 100%;
+      background: white;
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 8px 5px 12px;
+      z-index: 20;
+    }
+
+    nav button {
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      padding: 7px 4px;
+    }
+
+    nav button.active {
+      color: var(--primary-dark);
+      font-weight: 800;
+    }
+
+    nav .icon {
+      display: block;
+      font-size: 20px;
+      margin-bottom: 2px;
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 30px 10px;
+      font-size: 14px;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <header>
+      <h1 id="appTitle">Control de Invitados</h1>
+      <p id="appSubtitle">Panel del organizador</p>
+    </header>
+
+    <main>
+      <!-- INVITADOS -->
+      <section id="screenInvitados" class="screen active">
+        <input id="buscarInvitado" type="search" placeholder="Buscar invitado..." oninput="renderInvitados()" />
+
+        <div class="card">
+          <div class="title">Agregar invitado</div>
+          <br>
+          <input id="nuevoNombre" placeholder="Nombre invitado" />
+          <input id="nuevoTelefono" placeholder="Teléfono" inputmode="numeric" />
+          <input id="nuevoPersonas" placeholder="Personas invitadas" type="number" min="1" value="1" />
+          <button class="btn" onclick="agregarInvitado()">Agregar</button>
+        </div>
+
+        <div id="listaInvitados"></div>
+      </section>
+
+      <!-- LINKS -->
+      <section id="screenLinks" class="screen">
+        <div id="listaLinks"></div>
+      </section>
+
+      <!-- PANEL -->
+      <section id="screenPanel" class="screen">
+        <div class="grid">
+          <div class="stat"><strong id="statInvitados">0</strong><span>Invitados</span></div>
+          <div class="stat"><strong id="statPersonas">0</strong><span>Personas invitadas</span></div>
+          <div class="stat"><strong id="statConfirmados">0</strong><span>Confirmados</span></div>
+          <div class="stat"><strong id="statPendientes">0</strong><span>Pendientes</span></div>
+          <div class="stat"><strong id="statNo">0</strong><span>No asistirán</span></div>
+          <div class="stat"><strong id="statPersonasConfirmadas">0</strong><span>Personas confirmadas</span></div>
+        </div>
+
+        <br>
+
+        <div class="card">
+          <div class="title">Sí asistirán</div>
+          <div id="panelConfirmados"></div>
+        </div>
+
+        <div class="card">
+          <div class="title">No asistirán</div>
+          <div id="panelNoAsisten"></div>
+        </div>
+      </section>
+
+      <!-- CONFIGURACIÓN -->
+      <section id="screenConfig" class="screen">
+        <div class="card">
+          <div class="title">Configuración</div>
+          <br>
+          <input id="cfgNovio" placeholder="Novio" />
+          <input id="cfgNovia" placeholder="Novia" />
+          <input id="cfgFecha" placeholder="Fecha evento" type="date" />
+          <input id="cfgHora" placeholder="Hora evento" type="time" />
+          <input id="cfgLugar" placeholder="Lugar" />
+          <input id="cfgMapa" placeholder="Link mapa" />
+          <input id="cfgVestimenta" placeholder="Código vestimenta" />
+          <input id="cfgLimite" placeholder="Fecha límite confirmación" />
+          <textarea id="cfgDetalles" placeholder="Detalles especiales"></textarea>
+          <button class="btn" onclick="guardarConfig()">Guardar configuración</button>
+        </div>
+      </section>
+    </main>
+
+    <nav>
+      <button class="active" onclick="abrirPantalla('Invitados', this)">
+        <span class="icon">👥</span>Invitados
+      </button>
+      <button onclick="abrirPantalla('Links', this)">
+        <span class="icon">🔗</span>Links
+      </button>
+      <button onclick="abrirPantalla('Panel', this)">
+        <span class="icon">📊</span>Panel
+      </button>
+      <button onclick="abrirPantalla('Config', this)">
+        <span class="icon">⚙️</span>Config
+      </button>
+    </nav>
+  </div>
+
+  <script>
+    /************************************************
+     * CONEXIÓN CON APPS SCRIPT
+     * Pega aquí la URL de tu implementación web.
+     ************************************************/
+    const APPS_SCRIPT_URL = "PEGAR_AQUI_TU_URL_DE_APPS_SCRIPT";
+
+    /************************************************
+     * URL pública de la invitación en GitHub Pages.
+     * Ejemplo:
+     * https://usuario.github.io/invitacion-boda/?id=
+     ************************************************/
+    const URL_INVITACION = "PEGAR_AQUI_URL_DE_TU_INVITACION/?id=";
+
+    let invitados = [];
+    let configuracion = {};
+
+    document.addEventListener("DOMContentLoaded", cargarApp);
+
+    async function api(action, params = {}) {
+      const url = new URL(APPS_SCRIPT_URL);
+      url.searchParams.set("action", action);
+
+      Object.keys(params).forEach(key => {
+        url.searchParams.set(key, params[key]);
+      });
+
+      const res = await fetch(url.toString());
+      return await res.json();
+    }
+
+    async function cargarApp() {
+      await cargarInvitados();
+      await cargarConfiguracion();
+      renderInvitados();
+      renderLinks();
+      renderPanel();
+    }
+
+    function abrirPantalla(nombre, btn) {
+      document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+      document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+
+      document.getElementById("screen" + nombre).classList.add("active");
+      btn.classList.add("active");
+
+      const titulos = {
+        Invitados: "Invitados",
+        Links: "Links WhatsApp",
+        Panel: "Panel",
+        Config: "Configuración"
+      };
+
+      document.getElementById("appTitle").textContent = titulos[nombre];
+    }
+
+    async function cargarInvitados() {
+      try {
+        const data = await api("listarInvitados");
+
+        if (data.ok) {
+          invitados = data.invitados || [];
+        } else {
+          invitados = [];
+        }
+      } catch (e) {
+        console.error(e);
+        invitados = [];
+      }
+    }
+
+    async function cargarConfiguracion() {
+      try {
+        const data = await api("obtenerConfiguracionAdmin");
+
+        if (data.ok) {
+          configuracion = data.configuracion || {};
+          pintarConfig();
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderInvitados() {
+      const cont = document.getElementById("listaInvitados");
+      const q = document.getElementById("buscarInvitado").value.toLowerCase().trim();
+
+      const filtrados = invitados.filter(i =>
+        String(i.nombre || "").toLowerCase().includes(q)
+      );
+
+      if (!filtrados.length) {
+        cont.innerHTML = `<div class="empty">No hay invitados.</div>`;
+        return;
+      }
+
+      cont.innerHTML = filtrados.map(i => `
+        <div class="card">
+          <div class="row">
+            <div>
+              <div class="title">${i.nombre}</div>
+              <div class="sub">${i.telefono || "Sin teléfono"}</div>
+              <div class="sub">${i.personasInvitadas || 1} personas invitadas</div>
+            </div>
+            <span class="badge ${claseEstado(i.estado)}">${i.estado || "Pendiente"}</span>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderLinks() {
+      const cont = document.getElementById("listaLinks");
+
+      if (!invitados.length) {
+        cont.innerHTML = `<div class="empty">No hay links disponibles.</div>`;
+        return;
+      }
+
+      cont.innerHTML = invitados.map(i => {
+        const link = URL_INVITACION + encodeURIComponent(i.id);
+        const mensaje = `Hola ${i.nombre}, te compartimos tu invitación especial: ${link}`;
+
+        return `
+          <div class="card">
+            <div class="row">
+              <div>
+                <div class="title">${i.nombre}</div>
+                <div class="sub">${i.telefono || "Sin teléfono"}</div>
+                <div class="sub">${i.envioWhatsApp || "Pendiente de envío"}</div>
+              </div>
+            </div>
+            <br>
+            <button class="btn-green" onclick="compartirWhatsApp('${i.fila}', '${i.telefono}', \`${mensaje}\`)">
+              Compartir WhatsApp
+            </button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderPanel() {
+      const totalInvitados = invitados.length;
+      const totalPersonas = invitados.reduce((a, i) => a + Number(i.personasInvitadas || 0), 0);
+      const confirmados = invitados.filter(i => i.estado === "Confirmado");
+      const pendientes = invitados.filter(i => !i.estado || i.estado === "Pendiente");
+      const noAsisten = invitados.filter(i => i.estado === "No asistirá");
+      const personasConfirmadas = invitados.reduce((a, i) => a + Number(i.personasConfirmadas || 0), 0);
+
+      document.getElementById("statInvitados").textContent = totalInvitados;
+      document.getElementById("statPersonas").textContent = totalPersonas;
+      document.getElementById("statConfirmados").textContent = confirmados.length;
+      document.getElementById("statPendientes").textContent = pendientes.length;
+      document.getElementById("statNo").textContent = noAsisten.length;
+      document.getElementById("statPersonasConfirmadas").textContent = personasConfirmadas;
+
+      document.getElementById("panelConfirmados").innerHTML =
+        confirmados.length
+          ? confirmados.map(i => `<div class="sub">${i.nombre} — ${i.personasConfirmadas || 0} personas</div>`).join("")
+          : `<div class="sub">Sin confirmados.</div>`;
+
+      document.getElementById("panelNoAsisten").innerHTML =
+        noAsisten.length
+          ? noAsisten.map(i => `<div class="sub">${i.nombre}</div>`).join("")
+          : `<div class="sub">Sin registros.</div>`;
+    }
+
+    async function agregarInvitado() {
+      const nombre = document.getElementById("nuevoNombre").value.trim();
+      const telefono = document.getElementById("nuevoTelefono").value.trim();
+      const personas = document.getElementById("nuevoPersonas").value || 1;
+
+      if (!nombre) {
+        alert("Escribe el nombre del invitado.");
+        return;
+      }
+
+      const data = await api("agregarInvitado", {
+        nombre,
+        telefono,
+        personas
+      });
+
+      if (data.ok) {
+        document.getElementById("nuevoNombre").value = "";
+        document.getElementById("nuevoTelefono").value = "";
+        document.getElementById("nuevoPersonas").value = 1;
+
+        await cargarInvitados();
+        renderInvitados();
+        renderLinks();
+        renderPanel();
+
+        alert("Invitado agregado.");
+      } else {
+        alert(data.mensaje || "No se pudo agregar.");
+      }
+    }
+
+    function compartirWhatsApp(fila, telefono, mensaje) {
+      const url = new URL(APPS_SCRIPT_URL);
+      url.searchParams.set("action", "registrarEnvioWhatsApp");
+      url.searchParams.set("fila", fila);
+      url.searchParams.set("telefono", telefono);
+      url.searchParams.set("mensaje", mensaje);
+
+      window.open(url.toString(), "_blank");
+    }
+
+    function pintarConfig() {
+      document.getElementById("cfgNovio").value = configuracion["Novio"] || "";
+      document.getElementById("cfgNovia").value = configuracion["Novia"] || "";
+      document.getElementById("cfgFecha").value = configuracion["Fecha evento"] || "";
+      document.getElementById("cfgHora").value = configuracion["Hora evento"] || "";
+      document.getElementById("cfgLugar").value = configuracion["Lugar"] || "";
+      document.getElementById("cfgMapa").value = configuracion["Link mapa"] || "";
+      document.getElementById("cfgVestimenta").value = configuracion["Código vestimenta"] || "";
+      document.getElementById("cfgLimite").value = configuracion["Fecha límite confirmación"] || "";
+      document.getElementById("cfgDetalles").value = configuracion["Detalles especiales mensaje"] || "";
+    }
+
+    async function guardarConfig() {
+      const data = await api("guardarConfiguracionAdmin", {
+        novio: document.getElementById("cfgNovio").value,
+        novia: document.getElementById("cfgNovia").value,
+        fecha: document.getElementById("cfgFecha").value,
+        hora: document.getElementById("cfgHora").value,
+        lugar: document.getElementById("cfgLugar").value,
+        mapa: document.getElementById("cfgMapa").value,
+        vestimenta: document.getElementById("cfgVestimenta").value,
+        limite: document.getElementById("cfgLimite").value,
+        detalles: document.getElementById("cfgDetalles").value
+      });
+
+      alert(data.mensaje || "Configuración guardada.");
+    }
+
+    function claseEstado(estado) {
+      if (estado === "Confirmado") return "confirmado";
+      if (estado === "No asistirá") return "no";
+      return "pendiente";
+    }
+  </script>
+</body>
+</html>
