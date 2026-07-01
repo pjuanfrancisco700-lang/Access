@@ -379,6 +379,33 @@
       font-weight: 600;
     }
 
+    .message-item {
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(17, 24, 39, .07);
+    }
+
+    .message-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .message-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .message-text {
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.45;
+      margin-top: 8px;
+      word-break: break-word;
+      font-weight: 500;
+    }
+
     .hidden {
       display: none;
     }
@@ -442,6 +469,11 @@
         <div class="card">
           <div class="title">No asistirán</div>
           <div id="panelNoAsisten"></div>
+        </div>
+
+        <div class="card">
+          <div class="title">Mensajes de invitados</div>
+          <div id="panelComentarios"></div>
         </div>
       </section>
 
@@ -636,6 +668,7 @@
       const pendientes = invitados.filter(i => !i.estado || i.estado === "Pendiente");
       const noAsisten = invitados.filter(i => i.estado === "No asistirá");
       const personasConfirmadas = invitados.reduce((a, i) => a + Number(i.personasConfirmadas || 0), 0);
+      const comentarios = invitados.filter(i => String(i.comentario || "").trim());
 
       document.getElementById("statInvitados").textContent = totalInvitados;
       document.getElementById("statPersonas").textContent = totalPersonas;
@@ -653,6 +686,22 @@
         noAsisten.length
           ? noAsisten.map(i => `<div class="sub">${esc(i.nombre)}</div>`).join("")
           : `<div class="sub">Sin registros.</div>`;
+
+      document.getElementById("panelComentarios").innerHTML =
+        comentarios.length
+          ? comentarios.map(i => `
+            <div class="message-item">
+              <div class="message-head">
+                <div>
+                  <div class="title">${esc(i.nombre)}</div>
+                  <div class="sub">${esc(i.fechaConfirmacion || i.fecha || "Sin fecha de confirmación")}</div>
+                </div>
+                <span class="badge ${claseEstado(i.estado)}">${esc(i.estado || "Pendiente")}</span>
+              </div>
+              <div class="message-text">${esc(i.comentario)}</div>
+            </div>
+          `).join("")
+          : `<div class="sub">Aún no hay mensajes de invitados.</div>`;
     }
 
     async function agregarInvitado() {
