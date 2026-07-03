@@ -1,0 +1,19 @@
+# Control de Invitados - versión PWA
+
+Archivos incluidos:
+- `index.html`
+- `manifest.webmanifest`
+- `sw.js`
+- Carpeta `icons/`
+
+## Cómo subirlo a GitHub Pages
+1. Sube todos los archivos a la raíz del repositorio.
+2. Asegúrate de que el archivo principal se llame `index.html`.
+3. Espera a que GitHub Pages actualice.
+4. Abre la app desde el dominio con HTTPS.
+5. En Android: Chrome puede mostrar “Instalar app” o “Agregar a pantalla principal”.
+6. En iPhone: abre en Safari, toca Compartir y luego “Agregar a pantalla de inicio”.
+
+Nota:
+- En iPhone no se puede forzar la instalación automáticamente; el usuario debe agregarla manualmente desde Safari.
+- Al abrirla desde el icono de la pantalla de inicio, debe abrir en modo app sin mostrar la barra de dirección.
