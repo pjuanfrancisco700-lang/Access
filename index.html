@@ -604,6 +604,35 @@
       font-weight: 500;
     }
 
+
+    .toast-aviso {
+      position: fixed;
+      left: 50%;
+      bottom: calc(92px + var(--safe-bottom));
+      z-index: 140;
+      width: min(420px, calc(100% - 28px));
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(17, 24, 39, .88);
+      color: #ffffff;
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 700;
+      text-align: center;
+      box-shadow: 0 14px 34px rgba(15, 23, 42, .18);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-50%) translateY(12px) scale(.98);
+      transition: opacity .18s ease, transform .18s ease;
+    }
+
+    .toast-aviso.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+
     .hidden {
       display: none;
     }
@@ -740,6 +769,8 @@
     </div>
   </div>
 
+  <div id="toastAviso" class="toast-aviso hidden" role="status" aria-live="polite"></div>
+
 
   <script>
 
@@ -771,6 +802,7 @@
     let configuracion = {};
     let invitadoEditando = null;
     let loadingInicialOculto = false;
+    const accionesLinksBloqueadas = new Set();
 
     document.addEventListener("DOMContentLoaded", cargarApp);
 
@@ -816,7 +848,7 @@
       }, 260);
     }
 
-    async function api(action, params = {}) {
+    function construirUrlApi(action, params = {}) {
       const url = new URL(APPS_SCRIPT_URL);
       url.searchParams.set("action", action);
 
@@ -824,6 +856,11 @@
         url.searchParams.set(key, params[key]);
       });
 
+      return url;
+    }
+
+    async function api(action, params = {}) {
+      const url = construirUrlApi(action, params);
       const res = await fetch(url.toString());
       return await res.json();
     }
@@ -943,12 +980,12 @@
         const enviado = i.envioWhatsApp || i.envio || "Pendiente de envío";
 
         return `
-          <div class="card">
+          <div class="card" data-link-index="${index}">
             <div class="row">
               <div>
                 <div class="title">${esc(i.nombre)}</div>
                 <div class="sub">${esc(i.telefono || "Sin teléfono")}</div>
-                <div class="sub">${esc(enviado)}</div>
+                <div class="sub link-send-status">${esc(enviado)}</div>
               </div>
             </div>
             <br>
@@ -1147,7 +1184,7 @@
       }
     }
 
-    async function compartirWhatsApp(index, btn) {
+    function compartirWhatsApp(index, btn) {
       const invitado = invitados[index];
 
       if (!invitado) {
@@ -1162,14 +1199,14 @@
         return;
       }
 
-      if (btn && btn.disabled) return;
+      const claveBloqueo = obtenerClaveAccionLink("whatsapp", invitado, index);
+
+      if (!bloquearAccionLink(claveBloqueo, 1400)) return;
 
       const textoOriginal = btn ? btn.textContent : "";
 
       if (btn) {
-        btn.disabled = true;
-        btn.classList.add("btn-procesando");
-        btn.textContent = "Abriendo WhatsApp…";
+        prepararBotonTemporal(btn, "Abriendo…");
       }
 
       const link = URL_INVITACION + encodeURIComponent(invitado.id || "");
@@ -1181,46 +1218,21 @@
 ${link}`;
       const whatsappUrl = "https://wa.me/502" + tel + "?text=" + encodeURIComponent(mensaje);
 
-      try {
-        const data = await api("registrarEnvioWhatsApp", {
+      actualizarEstadoEnvioLocal(index);
+
+      registrarAccionLinkEnSegundoPlano(
+        index,
+        "registrarEnvioWhatsApp",
+        {
           fila: invitado.fila,
           telefono: tel,
           mensaje: mensaje,
           formato: "json"
-        });
+        },
+        "WhatsApp se abrió, pero no se pudo registrar el envío en Sheets."
+      );
 
-        if (data && data.ok) {
-          invitado.envioWhatsApp = "✅ Enviado";
-          invitado.fechaEnvioWhatsApp = data.fechaEnvioWhatsApp || invitado.fechaEnvioWhatsApp || "";
-
-          renderInvitados();
-          renderLinks();
-          renderPanel();
-
-          await cargarInvitados();
-          renderInvitados();
-          renderLinks();
-          renderPanel();
-        } else {
-          alert((data && data.mensaje) || "No se pudo registrar el envío de WhatsApp.");
-          if (btn) {
-            btn.disabled = false;
-            btn.classList.remove("btn-procesando");
-            btn.textContent = textoOriginal || "Compartir WhatsApp";
-          }
-          return;
-        }
-      } catch (e) {
-        console.log("No se pudo registrar el envío.", e);
-        alert("No se pudo actualizar el estado de envío. Revisa la conexión e intenta de nuevo.");
-        if (btn) {
-          btn.disabled = false;
-          btn.classList.remove("btn-procesando");
-          btn.textContent = textoOriginal || "Compartir WhatsApp";
-        }
-        return;
-      }
-
+      restaurarBotonTemporal(btn, textoOriginal || "Compartir WhatsApp", 700);
       window.location.href = whatsappUrl;
     }
 
@@ -1228,60 +1240,175 @@ ${link}`;
       const invitado = invitados[index];
 
       if (!invitado) return;
-      if (btn && btn.disabled) return;
+
+      const claveBloqueo = obtenerClaveAccionLink("copiar", invitado, index);
+
+      if (!bloquearAccionLink(claveBloqueo, 1300)) return;
 
       const textoOriginal = btn ? btn.textContent : "";
 
       if (btn) {
-        btn.disabled = true;
-        btn.classList.add("btn-procesando");
-        btn.textContent = "Copiando…";
+        prepararBotonTemporal(btn, "Copiando…");
       }
 
       const link = URL_INVITACION + encodeURIComponent(invitado.id || "");
+      const copiado = await copiarTextoPortapapeles(link);
 
-      try {
-        await navigator.clipboard.writeText(link);
-      } catch (e) {
-        prompt("Copia el link:", link);
+      if (btn) {
+        btn.textContent = copiado ? "Copiado" : "Link listo";
       }
 
-      try {
-        const data = await api("registrarLinkCopiado", {
+      actualizarEstadoEnvioLocal(index);
+
+      registrarAccionLinkEnSegundoPlano(
+        index,
+        "registrarLinkCopiado",
+        {
           fila: invitado.fila,
           id: invitado.id
-        });
+        },
+        "El link quedó listo, pero no se pudo registrar en Sheets."
+      );
 
-        if (data && data.ok) {
-          invitado.envioWhatsApp = "✅ Enviado";
-          invitado.fechaEnvioWhatsApp = data.fechaEnvioWhatsApp || invitado.fechaEnvioWhatsApp || "";
+      restaurarBotonTemporal(btn, textoOriginal || "Copiar link", 750);
+    }
 
-          renderInvitados();
-          renderLinks();
-          renderPanel();
+    function obtenerClaveAccionLink(tipo, invitado, index) {
+      return `${tipo}-${invitado.id || invitado.fila || index}`;
+    }
 
-          await cargarInvitados();
-          renderInvitados();
-          renderLinks();
-          renderPanel();
+    function bloquearAccionLink(clave, duracion = 1200) {
+      if (accionesLinksBloqueadas.has(clave)) return false;
 
-        } else {
-          alert((data && data.mensaje) || "El link se copió, pero no se pudo marcar como enviado.");
-          if (btn) {
-            btn.disabled = false;
-            btn.classList.remove("btn-procesando");
-            btn.textContent = textoOriginal || "Copiar link";
+      accionesLinksBloqueadas.add(clave);
+
+      setTimeout(() => {
+        accionesLinksBloqueadas.delete(clave);
+      }, duracion);
+
+      return true;
+    }
+
+    function prepararBotonTemporal(btn, texto) {
+      if (!btn) return;
+
+      btn.disabled = true;
+      btn.classList.add("btn-procesando");
+      btn.textContent = texto;
+    }
+
+    function restaurarBotonTemporal(btn, texto, espera = 700) {
+      if (!btn) return;
+
+      setTimeout(() => {
+        if (!btn.isConnected) return;
+
+        btn.disabled = false;
+        btn.classList.remove("btn-procesando");
+        btn.textContent = texto;
+      }, espera);
+    }
+
+    function actualizarEstadoEnvioLocal(index, fechaEnvio = "") {
+      const invitado = invitados[index];
+
+      if (!invitado) return;
+
+      invitado.envioWhatsApp = "✅ Enviado";
+      invitado.envio = "✅ Enviado";
+
+      if (fechaEnvio) {
+        invitado.fechaEnvioWhatsApp = fechaEnvio;
+      }
+
+      const card = document.querySelector(`[data-link-index="${index}"]`);
+      const estado = card ? card.querySelector(".link-send-status") : null;
+
+      if (estado) {
+        estado.textContent = invitado.envioWhatsApp;
+      }
+    }
+
+    function registrarAccionLinkEnSegundoPlano(index, action, params, mensajeFallo) {
+      const url = construirUrlApi(action, params);
+
+      fetch(url.toString(), {
+        method: "GET",
+        cache: "no-store",
+        keepalive: true
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.ok) {
+            actualizarEstadoEnvioLocal(index, data.fechaEnvioWhatsApp || "");
+            return;
           }
+
+          mostrarAvisoDiscreto((data && data.mensaje) || mensajeFallo);
+        })
+        .catch(error => {
+          console.log("Registro en segundo plano no completado:", error);
+          mostrarAvisoDiscreto(mensajeFallo);
+        });
+    }
+
+    async function copiarTextoPortapapeles(texto) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(texto);
+          return true;
         }
       } catch (e) {
-        console.error(e);
-        alert("El link se copió, pero no se pudo actualizar el estado de envío. Revisa la conexión.");
-        if (btn) {
-          btn.disabled = false;
-          btn.classList.remove("btn-procesando");
-          btn.textContent = textoOriginal || "Copiar link";
-        }
+        console.log("Clipboard API no disponible:", e);
       }
+
+      try {
+        const area = document.createElement("textarea");
+        area.value = texto;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.top = "-9999px";
+        area.style.opacity = "0";
+
+        document.body.appendChild(area);
+        area.focus();
+        area.select();
+
+        const copiado = document.execCommand("copy");
+        document.body.removeChild(area);
+
+        if (copiado) return true;
+      } catch (e) {
+        console.log("Copia alternativa no disponible:", e);
+      }
+
+      prompt("Copia el link:", texto);
+      return false;
+    }
+
+    function mostrarAvisoDiscreto(mensaje) {
+      const toast = document.getElementById("toastAviso");
+
+      if (!toast || !mensaje) return;
+
+      toast.textContent = mensaje;
+      toast.classList.remove("hidden");
+
+      requestAnimationFrame(() => {
+        toast.classList.add("show");
+      });
+
+      clearTimeout(toast._timer);
+
+      toast._timer = setTimeout(() => {
+        toast.classList.remove("show");
+
+        setTimeout(() => {
+          if (!toast.classList.contains("show")) {
+            toast.classList.add("hidden");
+          }
+        }, 220);
+      }, 2800);
     }
 
     function pintarConfig() {
