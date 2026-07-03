@@ -84,6 +84,66 @@
       z-index: -1;
     }
 
+    .initial-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top left, rgba(0, 122, 255, .10), transparent 34%),
+        rgba(245, 247, 251, .88);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      opacity: 1;
+      visibility: visible;
+      transition: opacity .36s ease, visibility .36s ease;
+    }
+
+    .initial-loader.hide {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .loading-card {
+      width: min(240px, 88vw);
+      min-height: 150px;
+      border-radius: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: rgba(255, 255, 255, .82);
+      border: 1px solid rgba(255, 255, 255, .72);
+      box-shadow: 0 18px 50px rgba(15, 23, 42, .10);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+    }
+
+    .loading-spinner {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 3px solid rgba(0, 122, 255, .16);
+      border-top-color: var(--primary);
+      animation: loadingSpin .82s linear infinite;
+    }
+
+    .loading-text {
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -.18px;
+    }
+
+    @keyframes loadingSpin {
+      to { transform: rotate(360deg); }
+    }
+
     .app {
       width: 100%;
       max-width: 480px;
@@ -254,17 +314,21 @@
       touch-action: manipulation;
       user-select: none;
       -webkit-user-select: none;
-      transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease, background .16s ease;
+      transform: translateY(0) scale(1);
+      will-change: transform;
+      transition: transform .14s ease, box-shadow .14s ease, opacity .16s ease, background .16s ease, filter .14s ease;
     }
 
-    button:active {
-      transform: scale(.985);
+    button:not(:disabled):active {
+      transform: translateY(2px) scale(.972);
+      filter: saturate(.96);
     }
 
     button:disabled {
       opacity: .65;
       cursor: not-allowed;
       transform: none;
+      filter: none;
     }
 
     .btn {
@@ -293,6 +357,17 @@
       color: var(--red);
       width: 100%;
       box-shadow: var(--shadow-soft);
+    }
+
+    .btn:not(:disabled):active {
+      box-shadow: 0 5px 14px rgba(0, 122, 255, .18);
+    }
+
+    .btn-light:not(:disabled):active,
+    .btn-green:not(:disabled):active,
+    .btn-red:not(:disabled):active,
+    nav button:not(:disabled):active {
+      box-shadow: 0 3px 10px rgba(15, 23, 42, .06);
     }
 
     .grid {
@@ -439,6 +514,13 @@
 </head>
 
 <body>
+  <div id="appLoading" class="initial-loader" aria-live="polite" aria-label="Cargando datos">
+    <div class="loading-card">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <div class="loading-text">Cargando datos…</div>
+    </div>
+  </div>
+
   <div class="app">
     <header>
       <h1 id="appTitle">Control de Invitados</h1>
@@ -559,6 +641,29 @@
 
     document.addEventListener("DOMContentLoaded", cargarApp);
 
+    function mostrarLoadingInicial() {
+      const loader = document.getElementById("appLoading");
+      if (!loader) return;
+
+      loader.style.display = "flex";
+      loader.classList.remove("hide");
+    }
+
+    function ocultarLoadingInicial() {
+      const loader = document.getElementById("appLoading");
+      if (!loader) return;
+
+      requestAnimationFrame(() => {
+        loader.classList.add("hide");
+      });
+
+      setTimeout(() => {
+        if (loader.classList.contains("hide")) {
+          loader.style.display = "none";
+        }
+      }, 420);
+    }
+
     async function api(action, params = {}) {
       const url = new URL(APPS_SCRIPT_URL);
       url.searchParams.set("action", action);
@@ -572,11 +677,19 @@
     }
 
     async function cargarApp() {
-      await cargarInvitados();
-      await cargarConfiguracion();
-      renderInvitados();
-      renderLinks();
-      renderPanel();
+      mostrarLoadingInicial();
+
+      try {
+        await cargarInvitados();
+        await cargarConfiguracion();
+        renderInvitados();
+        renderLinks();
+        renderPanel();
+      } catch (e) {
+        console.error("Error al cargar la app:", e);
+      } finally {
+        ocultarLoadingInicial();
+      }
     }
 
     function abrirPantalla(nombre, btn) {
