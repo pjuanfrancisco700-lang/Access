@@ -956,7 +956,7 @@
               Compartir WhatsApp
             </button>
             <br><br>
-            <button class="btn-light" onclick="copiarLink(${index})">
+            <button class="btn-light" onclick="copiarLink(${index}, this)">
               Copiar link
             </button>
           </div>
@@ -1224,18 +1224,64 @@ ${link}`;
       window.location.href = whatsappUrl;
     }
 
-    async function copiarLink(index) {
+    async function copiarLink(index, btn) {
       const invitado = invitados[index];
 
       if (!invitado) return;
+      if (btn && btn.disabled) return;
+
+      const textoOriginal = btn ? btn.textContent : "";
+
+      if (btn) {
+        btn.disabled = true;
+        btn.classList.add("btn-procesando");
+        btn.textContent = "Copiando…";
+      }
 
       const link = URL_INVITACION + encodeURIComponent(invitado.id || "");
 
       try {
         await navigator.clipboard.writeText(link);
-        alert("Link copiado.");
       } catch (e) {
         prompt("Copia el link:", link);
+      }
+
+      try {
+        const data = await api("registrarLinkCopiado", {
+          fila: invitado.fila,
+          id: invitado.id
+        });
+
+        if (data && data.ok) {
+          invitado.envioWhatsApp = "✅ Enviado";
+          invitado.fechaEnvioWhatsApp = data.fechaEnvioWhatsApp || invitado.fechaEnvioWhatsApp || "";
+
+          renderInvitados();
+          renderLinks();
+          renderPanel();
+
+          await cargarInvitados();
+          renderInvitados();
+          renderLinks();
+          renderPanel();
+
+          alert(data.mensaje || "Link copiado y marcado como enviado.");
+        } else {
+          alert((data && data.mensaje) || "El link se copió, pero no se pudo marcar como enviado.");
+          if (btn) {
+            btn.disabled = false;
+            btn.classList.remove("btn-procesando");
+            btn.textContent = textoOriginal || "Copiar link";
+          }
+        }
+      } catch (e) {
+        console.error(e);
+        alert("El link se copió, pero no se pudo actualizar el estado de envío. Revisa la conexión.");
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove("btn-procesando");
+          btn.textContent = textoOriginal || "Copiar link";
+        }
       }
     }
 
