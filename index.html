@@ -319,9 +319,11 @@
       transition: transform .14s ease, box-shadow .14s ease, opacity .16s ease, background .16s ease, filter .14s ease;
     }
 
-    button:not(:disabled):active {
-      transform: translateY(2px) scale(.972);
-      filter: saturate(.96);
+    button:not(:disabled):active,
+    button.is-pressing:not(:disabled) {
+      transform: translateY(3px) scale(.955);
+      filter: saturate(.94) brightness(.98);
+      box-shadow: inset 0 3px 8px rgba(15, 23, 42, .10), 0 2px 8px rgba(15, 23, 42, .06) !important;
     }
 
     button:disabled {
@@ -329,6 +331,12 @@
       cursor: not-allowed;
       transform: none;
       filter: none;
+    }
+
+    button.btn-procesando {
+      opacity: .78;
+      transform: translateY(2px) scale(.972);
+      box-shadow: inset 0 3px 8px rgba(15, 23, 42, .08), 0 2px 8px rgba(15, 23, 42, .05) !important;
     }
 
     .btn {
@@ -766,6 +774,23 @@
 
     document.addEventListener("DOMContentLoaded", cargarApp);
 
+    document.addEventListener("pointerdown", activarEfectoBoton, true);
+    document.addEventListener("pointerup", quitarEfectoBoton, true);
+    document.addEventListener("pointercancel", quitarEfectoBoton, true);
+    document.addEventListener("pointerleave", quitarEfectoBoton, true);
+
+    function activarEfectoBoton(e) {
+      const btn = e.target.closest("button");
+      if (!btn || btn.disabled) return;
+      btn.classList.add("is-pressing");
+    }
+
+    function quitarEfectoBoton(e) {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      setTimeout(() => btn.classList.remove("is-pressing"), 120);
+    }
+
     function mostrarLoadingInicial() {
       const loader = document.getElementById("appLoading");
       if (!loader) return;
@@ -927,7 +952,7 @@
               </div>
             </div>
             <br>
-            <button class="btn-green" onclick="compartirWhatsApp(${index})">
+            <button class="btn-green" onclick="compartirWhatsApp(${index}, this)">
               Compartir WhatsApp
             </button>
             <br><br>
@@ -1122,7 +1147,7 @@
       }
     }
 
-    async function compartirWhatsApp(index) {
+    async function compartirWhatsApp(index, btn) {
       const invitado = invitados[index];
 
       if (!invitado) {
@@ -1137,25 +1162,63 @@
         return;
       }
 
+      if (btn && btn.disabled) return;
+
+      const textoOriginal = btn ? btn.textContent : "";
+
+      if (btn) {
+        btn.disabled = true;
+        btn.classList.add("btn-procesando");
+        btn.textContent = "Abriendo WhatsApp…";
+      }
+
       const link = URL_INVITACION + encodeURIComponent(invitado.id || "");
 
       let mensajeBase = configuracion["Mensaje WhatsApp"] || "Hola {NOMBRE}, te compartimos tu invitación especial:";
       mensajeBase = mensajeBase.replaceAll("{NOMBRE}", invitado.nombre || "");
 
-      const mensaje = `${mensajeBase}\n${link}`;
+      const mensaje = `${mensajeBase}
+${link}`;
       const whatsappUrl = "https://wa.me/502" + tel + "?text=" + encodeURIComponent(mensaje);
 
       try {
-        await api("registrarEnvioWhatsApp", {
+        const data = await api("registrarEnvioWhatsApp", {
           fila: invitado.fila,
           telefono: tel,
-          mensaje: mensaje
+          mensaje: mensaje,
+          formato: "json"
         });
 
-        invitado.envioWhatsApp = "✅ Enviado";
-        renderLinks();
+        if (data && data.ok) {
+          invitado.envioWhatsApp = "✅ Enviado";
+          invitado.fechaEnvioWhatsApp = data.fechaEnvioWhatsApp || invitado.fechaEnvioWhatsApp || "";
+
+          renderInvitados();
+          renderLinks();
+          renderPanel();
+
+          await cargarInvitados();
+          renderInvitados();
+          renderLinks();
+          renderPanel();
+        } else {
+          alert((data && data.mensaje) || "No se pudo registrar el envío de WhatsApp.");
+          if (btn) {
+            btn.disabled = false;
+            btn.classList.remove("btn-procesando");
+            btn.textContent = textoOriginal || "Compartir WhatsApp";
+          }
+          return;
+        }
       } catch (e) {
         console.log("No se pudo registrar el envío.", e);
+        alert("No se pudo actualizar el estado de envío. Revisa la conexión e intenta de nuevo.");
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove("btn-procesando");
+          btn.textContent = textoOriginal || "Compartir WhatsApp";
+        }
+        return;
       }
 
       window.location.href = whatsappUrl;
