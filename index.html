@@ -93,13 +93,13 @@
       justify-content: center;
       padding: 24px;
       background:
-        radial-gradient(circle at top left, rgba(0, 122, 255, .10), transparent 34%),
-        rgba(245, 247, 251, .88);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+        radial-gradient(circle at top left, rgba(0, 122, 255, .08), transparent 34%),
+        rgba(245, 247, 251, .72);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       opacity: 1;
       visibility: visible;
-      transition: opacity .20s ease, visibility .20s ease;
+      transition: opacity .22s ease, visibility .22s ease;
     }
 
     .initial-loader.hide {
@@ -109,8 +109,8 @@
     }
 
     .loading-card {
-      width: min(240px, 88vw);
-      min-height: 150px;
+      width: min(220px, 86vw);
+      min-height: 132px;
       border-radius: 30px;
       display: flex;
       flex-direction: column;
@@ -119,18 +119,18 @@
       gap: 16px;
       background: rgba(255, 255, 255, .82);
       border: 1px solid rgba(255, 255, 255, .72);
-      box-shadow: 0 14px 34px rgba(15, 23, 42, .08);
+      box-shadow: 0 12px 34px rgba(15, 23, 42, .09);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
     }
 
     .loading-spinner {
-      width: 34px;
-      height: 34px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
-      border: 3px solid rgba(0, 122, 255, .16);
+      border: 2.5px solid rgba(0, 122, 255, .16);
       border-top-color: var(--primary);
-      animation: loadingSpin .82s linear infinite;
+      animation: loadingSpin .72s linear infinite;
     }
 
     .loading-text {
@@ -638,6 +638,7 @@
 
     let invitados = [];
     let configuracion = {};
+    let loadingInicialOculto = false;
 
     document.addEventListener("DOMContentLoaded", cargarApp);
 
@@ -651,7 +652,9 @@
 
     function ocultarLoadingInicial() {
       const loader = document.getElementById("appLoading");
-      if (!loader) return;
+      if (!loader || loadingInicialOculto) return;
+
+      loadingInicialOculto = true;
 
       requestAnimationFrame(() => {
         loader.classList.add("hide");
@@ -661,7 +664,7 @@
         if (loader.classList.contains("hide")) {
           loader.style.display = "none";
         }
-      }, 240);
+      }, 260);
     }
 
     async function api(action, params = {}) {
@@ -680,17 +683,20 @@
       mostrarLoadingInicial();
 
       try {
-        await Promise.allSettled([
-          cargarInvitados(),
-          cargarConfiguracion()
-        ]);
+        await cargarInvitados();
 
         renderInvitados();
         renderLinks();
         renderPanel();
+
+        ocultarLoadingInicial();
+
+        await cargarConfiguracion();
       } catch (e) {
         console.error("Error al cargar la app:", e);
-      } finally {
+        renderInvitados();
+        renderLinks();
+        renderPanel();
         ocultarLoadingInicial();
       }
     }
