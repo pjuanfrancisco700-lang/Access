@@ -95,11 +95,11 @@
       background:
         radial-gradient(circle at top left, rgba(0, 122, 255, .10), transparent 34%),
         rgba(245, 247, 251, .88);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       opacity: 1;
       visibility: visible;
-      transition: opacity .36s ease, visibility .36s ease;
+      transition: opacity .20s ease, visibility .20s ease;
     }
 
     .initial-loader.hide {
@@ -119,9 +119,9 @@
       gap: 16px;
       background: rgba(255, 255, 255, .82);
       border: 1px solid rgba(255, 255, 255, .72);
-      box-shadow: 0 18px 50px rgba(15, 23, 42, .10);
-      backdrop-filter: blur(22px);
-      -webkit-backdrop-filter: blur(22px);
+      box-shadow: 0 14px 34px rgba(15, 23, 42, .08);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
     }
 
     .loading-spinner {
@@ -661,7 +661,7 @@
         if (loader.classList.contains("hide")) {
           loader.style.display = "none";
         }
-      }, 420);
+      }, 240);
     }
 
     async function api(action, params = {}) {
@@ -680,8 +680,11 @@
       mostrarLoadingInicial();
 
       try {
-        await cargarInvitados();
-        await cargarConfiguracion();
+        await Promise.allSettled([
+          cargarInvitados(),
+          cargarConfiguracion()
+        ]);
+
         renderInvitados();
         renderLinks();
         renderPanel();
