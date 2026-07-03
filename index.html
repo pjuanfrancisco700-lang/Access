@@ -462,6 +462,105 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 4px 10px rgba(0, 122, 255, .10);
     }
 
+
+    .guest-card {
+      position: relative;
+    }
+
+    .guest-card .row {
+      align-items: flex-start;
+      padding-right: 38px;
+    }
+
+    .edit-guest-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      padding: 0;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, .78);
+      color: var(--primary-dark);
+      font-size: 14px;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, .08);
+      border: 1px solid rgba(17, 24, 39, .07);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .edit-guest-btn:not(:disabled):active {
+      box-shadow: 0 3px 10px rgba(15, 23, 42, .06);
+    }
+
+    .edit-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 120;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 16px;
+      padding-bottom: calc(18px + var(--safe-bottom));
+      background: rgba(15, 23, 42, .28);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .edit-modal-overlay.hidden {
+      display: none;
+    }
+
+    .edit-modal-card {
+      width: min(448px, 100%);
+      background: rgba(255, 255, 255, .92);
+      border: 1px solid rgba(255, 255, 255, .72);
+      border-radius: 28px;
+      padding: 16px;
+      box-shadow: 0 18px 48px rgba(15, 23, 42, .18);
+      animation: modalUp .18s ease-out;
+    }
+
+    @keyframes modalUp {
+      from { opacity: .82; transform: translateY(12px) scale(.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .edit-modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .edit-modal-close {
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      padding: 0;
+      border-radius: 50%;
+      background: rgba(17, 24, 39, .06);
+      color: var(--muted);
+      box-shadow: var(--shadow-soft);
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .edit-modal-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 2px;
+    }
+
+    .edit-modal-delete {
+      margin-top: 10px;
+    }
+
     .empty {
       text-align: center;
       color: var(--muted);
@@ -610,6 +709,30 @@
     </nav>
   </div>
 
+  <div id="modalEditarInvitado" class="edit-modal-overlay hidden" aria-hidden="true">
+    <div class="edit-modal-card" role="dialog" aria-modal="true" aria-labelledby="modalEditarInvitadoTitulo">
+      <div class="edit-modal-head">
+        <div>
+          <div id="modalEditarInvitadoTitulo" class="title">Editar invitado</div>
+          <div class="sub">Actualiza solo los datos de creación.</div>
+        </div>
+        <button class="edit-modal-close" type="button" onclick="cerrarEditorInvitado()" aria-label="Cerrar">×</button>
+      </div>
+
+      <input id="editInvitadoNombre" placeholder="Nombre invitado" />
+      <input id="editInvitadoTelefono" placeholder="Teléfono" inputmode="numeric" />
+      <input id="editInvitadoPersonas" placeholder="Personas invitadas" type="number" min="1" />
+
+      <div class="edit-modal-actions">
+        <button class="btn-light" type="button" onclick="cerrarEditorInvitado()">Cancelar</button>
+        <button class="btn" type="button" onclick="guardarEdicionInvitado()">Guardar</button>
+      </div>
+
+      <button class="btn-red edit-modal-delete" type="button" onclick="eliminarInvitadoEditando()">Eliminar invitado</button>
+    </div>
+  </div>
+
+
   <script>
 
     /************************************************
@@ -638,6 +761,7 @@
 
     let invitados = [];
     let configuracion = {};
+    let invitadoEditando = null;
     let loadingInicialOculto = false;
 
     document.addEventListener("DOMContentLoaded", cargarApp);
@@ -765,7 +889,10 @@
       }
 
       cont.innerHTML = filtrados.map(i => `
-        <div class="card">
+        <div class="card guest-card">
+          <button class="edit-guest-btn" type="button" onclick="abrirEditorInvitadoPorFila(${Number(i.fila || 0)})" aria-label="Editar invitado">
+            ✏️
+          </button>
           <div class="row">
             <div>
               <div class="title">${esc(i.nombre)}</div>
@@ -884,6 +1011,114 @@
         alert("Invitado agregado.");
       } else {
         alert(data.mensaje || "No se pudo agregar.");
+      }
+    }
+
+
+    function abrirEditorInvitadoPorFila(fila) {
+      const invitado = invitados.find(i => Number(i.fila || 0) === Number(fila));
+
+      if (!invitado) {
+        alert("No se encontró el invitado.");
+        return;
+      }
+
+      invitadoEditando = invitado;
+
+      document.getElementById("editInvitadoNombre").value = invitado.nombre || "";
+      document.getElementById("editInvitadoTelefono").value = invitado.telefono || "";
+      document.getElementById("editInvitadoPersonas").value = Number(invitado.personasInvitadas || 1);
+
+      const modal = document.getElementById("modalEditarInvitado");
+      modal.classList.remove("hidden");
+      modal.setAttribute("aria-hidden", "false");
+    }
+
+    function cerrarEditorInvitado() {
+      const modal = document.getElementById("modalEditarInvitado");
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+      invitadoEditando = null;
+    }
+
+    async function guardarEdicionInvitado() {
+      if (!invitadoEditando) {
+        alert("No se encontró el invitado a editar.");
+        return;
+      }
+
+      const nombre = document.getElementById("editInvitadoNombre").value.trim();
+      const telefono = document.getElementById("editInvitadoTelefono").value.trim();
+      const personas = Number(document.getElementById("editInvitadoPersonas").value || 1);
+
+      if (!nombre) {
+        alert("Escribe el nombre del invitado.");
+        return;
+      }
+
+      if (!personas || personas < 1) {
+        alert("La cantidad de personas debe ser mayor a 0.");
+        return;
+      }
+
+      try {
+        const data = await api("editarInvitado", {
+          fila: invitadoEditando.fila,
+          id: invitadoEditando.id,
+          nombre,
+          telefono,
+          personas
+        });
+
+        if (data.ok) {
+          cerrarEditorInvitado();
+
+          await cargarInvitados();
+          renderInvitados();
+          renderLinks();
+          renderPanel();
+
+          alert(data.mensaje || "Invitado actualizado.");
+        } else {
+          alert(data.mensaje || "No se pudo actualizar el invitado.");
+        }
+      } catch (e) {
+        console.error(e);
+        alert("No se pudo conectar con Apps Script.");
+      }
+    }
+
+    async function eliminarInvitadoEditando() {
+      if (!invitadoEditando) {
+        alert("No se encontró el invitado a eliminar.");
+        return;
+      }
+
+      const confirmar = confirm("¿Seguro que quieres eliminar este invitado? Esta acción no se puede deshacer.");
+
+      if (!confirmar) return;
+
+      try {
+        const data = await api("eliminarInvitado", {
+          fila: invitadoEditando.fila,
+          id: invitadoEditando.id
+        });
+
+        if (data.ok) {
+          cerrarEditorInvitado();
+
+          await cargarInvitados();
+          renderInvitados();
+          renderLinks();
+          renderPanel();
+
+          alert(data.mensaje || "Invitado eliminado.");
+        } else {
+          alert(data.mensaje || "No se pudo eliminar el invitado.");
+        }
+      } catch (e) {
+        console.error(e);
+        alert("No se pudo conectar con Apps Script.");
       }
     }
 
