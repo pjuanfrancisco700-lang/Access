@@ -423,6 +423,21 @@
       font-weight: 700;
     }
 
+    .panel-refresh-wrap {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 12px;
+    }
+
+    .panel-refresh-btn {
+      width: auto;
+      min-width: 148px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      box-shadow: var(--shadow-soft);
+    }
+
     nav {
       position: fixed;
       bottom: 0;
@@ -696,6 +711,12 @@
       </section>
 
       <section id="screenPanel" class="screen">
+        <div class="panel-refresh-wrap">
+          <button id="btnActualizarPanel" class="btn-light panel-refresh-btn" type="button" onclick="actualizarPanel(this, false)">
+            Actualizar panel
+          </button>
+        </div>
+
         <div class="grid">
           <div class="stat"><strong id="statInvitados">0</strong><span>Invitados</span></div>
           <div class="stat"><strong id="statPersonas">0</strong><span>Personas invitadas</span></div>
@@ -814,6 +835,7 @@
     let configuracion = {};
     let invitadoEditando = null;
     let loadingInicialOculto = false;
+    let panelActualizando = false;
     const accionesLinksBloqueadas = new Set();
 
     document.addEventListener("DOMContentLoaded", cargarApp);
@@ -916,27 +938,40 @@
       document.getElementById("appTitle").textContent = titulos[nombre];
 
       if (nombre === "Links") renderLinks();
-      if (nombre === "Panel") renderPanel();
+      if (nombre === "Panel") {
+        renderPanel();
+        actualizarPanel(null, true);
+      }
 
       const main = document.querySelector("main");
       if (main) main.scrollTop = 0;
       window.scrollTo(0, 0);
     }
 
-    async function cargarInvitados() {
+    async function cargarInvitados(silencioso = false) {
       try {
         const data = await api("listarInvitados");
 
         if (data.ok) {
           invitados = data.invitados || [];
         } else {
-          invitados = [];
-          alert(data.mensaje || "No se pudieron cargar los invitados.");
+          if (!silencioso) {
+            invitados = [];
+            alert(data.mensaje || "No se pudieron cargar los invitados.");
+          }
+
+          throw new Error(data.mensaje || "No se pudieron cargar los invitados.");
         }
       } catch (e) {
         console.error(e);
-        invitados = [];
-        alert("No se pudo conectar con Apps Script.");
+
+        if (!silencioso) {
+          invitados = [];
+          alert("No se pudo conectar con Apps Script.");
+          return;
+        }
+
+        throw e;
       }
     }
 
@@ -1058,6 +1093,45 @@
             </div>
           `).join("")
           : `<div class="sub">Aún no hay mensajes de invitados.</div>`;
+    }
+
+    async function actualizarPanel(btn = null, silencioso = false) {
+      if (panelActualizando) return;
+
+      const boton = btn || document.getElementById("btnActualizarPanel");
+      const textoOriginal = boton ? boton.textContent.trim() : "Actualizar panel";
+      const invitadosAnteriores = Array.isArray(invitados) ? [...invitados] : [];
+
+      panelActualizando = true;
+
+      if (boton) {
+        boton.disabled = true;
+        boton.classList.add("btn-procesando");
+        boton.textContent = "Actualizando…";
+      }
+
+      try {
+        await cargarInvitados(true);
+
+        renderPanel();
+        renderInvitados();
+        renderLinks();
+      } catch (e) {
+        console.error("Error al actualizar panel:", e);
+        invitados = invitadosAnteriores;
+
+        if (!silencioso) {
+          mostrarAvisoDiscreto("No se pudo actualizar el panel. Intenta de nuevo.");
+        }
+      } finally {
+        panelActualizando = false;
+
+        if (boton) {
+          boton.disabled = false;
+          boton.classList.remove("btn-procesando");
+          boton.textContent = textoOriginal || "Actualizar panel";
+        }
+      }
     }
 
     async function agregarInvitado() {
